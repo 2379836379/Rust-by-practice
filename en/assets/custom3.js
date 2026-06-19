@@ -16,17 +16,6 @@ var initAll = function () {
 
         var storagePrefix = "rust-by-practice:answers:";
 
-        var clearSavedAnswers = function () {
-            Array.prototype.forEach.call(editors, function (editor, index) {
-                var key = storagePrefix + path + "#" + index;
-                localStorage.removeItem(key);
-                if (typeof editor.originalCode === "string") {
-                    editor.setValue(editor.originalCode, -1);
-                    editor.clearSelection();
-                }
-            });
-        };
-
         Array.prototype.forEach.call(editors, function (editor, index) {
             var key = storagePrefix + path + "#" + index;
             var saved = localStorage.getItem(key);
@@ -39,23 +28,6 @@ var initAll = function () {
                 localStorage.setItem(key, editor.getValue());
             });
         });
-
-        var rightButtons = document.getElementsByClassName("right-buttons");
-        if (!rightButtons.length || document.getElementById("clear-saved-answers-button")) {
-            return;
-        }
-
-        var clearButton = document.createElement("button");
-        clearButton.id = "clear-saved-answers-button";
-        clearButton.type = "button";
-        clearButton.className = "icon-button";
-        clearButton.title = "Clear saved answers on this page";
-        clearButton.setAttribute("aria-label", "Clear saved answers on this page");
-        clearButton.textContent = "Clear Answers";
-        clearButton.addEventListener("click", function () {
-            clearSavedAnswers();
-        });
-        rightButtons[0].appendChild(clearButton);
     };
 
     window.setTimeout(initEditorPersistence, 0);
