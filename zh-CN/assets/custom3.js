@@ -4,6 +4,62 @@ var initAll = function () {
         return;
     }
 
+    var initEditorPersistence = function () {
+        if (!window.localStorage) {
+            return;
+        }
+
+        var editors = window.editors || [];
+        if (!editors.length) {
+            return;
+        }
+
+        var storagePrefix = "rust-by-practice:answers:";
+
+        var clearSavedAnswers = function () {
+            Array.prototype.forEach.call(editors, function (editor, index) {
+                var key = storagePrefix + path + "#" + index;
+                localStorage.removeItem(key);
+                if (typeof editor.originalCode === "string") {
+                    editor.setValue(editor.originalCode, -1);
+                    editor.clearSelection();
+                }
+            });
+        };
+
+        Array.prototype.forEach.call(editors, function (editor, index) {
+            var key = storagePrefix + path + "#" + index;
+            var saved = localStorage.getItem(key);
+            if (saved !== null && saved !== editor.getValue()) {
+                editor.setValue(saved, -1);
+                editor.clearSelection();
+            }
+
+            editor.getSession().on("change", function () {
+                localStorage.setItem(key, editor.getValue());
+            });
+        });
+
+        var rightButtons = document.getElementsByClassName("right-buttons");
+        if (!rightButtons.length || document.getElementById("clear-saved-answers-button")) {
+            return;
+        }
+
+        var clearButton = document.createElement("button");
+        clearButton.id = "clear-saved-answers-button";
+        clearButton.type = "button";
+        clearButton.className = "icon-button";
+        clearButton.title = "清空当前页已保存答案";
+        clearButton.setAttribute("aria-label", "清空当前页已保存答案");
+        clearButton.textContent = "清空答案";
+        clearButton.addEventListener("click", function () {
+            clearSavedAnswers();
+        });
+        rightButtons[0].appendChild(clearButton);
+    };
+
+    window.setTimeout(initEditorPersistence, 0);
+
     var images = document.querySelectorAll("main img")
     Array.prototype.forEach.call(images, function (img) {
         img.addEventListener("click", function () {
@@ -13,11 +69,14 @@ var initAll = function () {
         });
     });
 
+    var pagetoc = document.getElementsByClassName("pagetoc")[0];
+    var pagetocLinks = pagetoc ? pagetoc.children : [];
+
     // Un-active everything when you click it
-    Array.prototype.forEach.call(document.getElementsByClassName("pagetoc")[0].children, function (el) {
-        el.addEventHandler("click", function () {
-            Array.prototype.forEach.call(document.getElementsByClassName("pagetoc")[0].children, function (el) {
-                el.classList.remove("active");
+    Array.prototype.forEach.call(pagetocLinks, function (el) {
+        el.addEventListener("click", function () {
+            Array.prototype.forEach.call(pagetocLinks, function (link) {
+                link.classList.remove("active");
             });
             el.classList.add("active");
         });
@@ -32,11 +91,11 @@ var initAll = function () {
             }
         });
 
-        Array.prototype.forEach.call(document.getElementsByClassName("pagetoc")[0].children, function (el) {
+        Array.prototype.forEach.call(pagetocLinks, function (el) {
             el.classList.remove("active");
         });
 
-        Array.prototype.forEach.call(document.getElementsByClassName("pagetoc")[0].children, function (el) {
+        Array.prototype.forEach.call(pagetocLinks, function (el) {
             if (id == null) {
                 return;
             }
@@ -46,81 +105,105 @@ var initAll = function () {
         });
     };
 
-    var pagetoc = document.getElementsByClassName("pagetoc")[0];
     var elements = document.getElementsByClassName("header");
-    Array.prototype.forEach.call(elements, function (el) {
-        var link = document.createElement("a");
+    if (pagetoc) {
+        Array.prototype.forEach.call(elements, function (el) {
+            var link = document.createElement("a");
 
-        // Indent shows hierarchy
-        var indent = "";
-        switch (el.parentElement.tagName) {
-            case "H1":
-                return;
-            case "H3":
-                indent = "20px";
-                break;
-            case "H4":
-                indent = "40px";
-                break;
-            default:
-                break;
-        }
-
-        link.appendChild(document.createTextNode(el.text));
-        link.style.paddingLeft = indent;
-        link.href = el.href;
-        pagetoc.appendChild(link);
-    });
-    updateFunction.call();
-
-    // Handle active elements on scroll
-    window.addEventListener("scroll", updateFunction);
-
-    document.getElementById("theme-list").addEventListener("click", function (e) {
-        var iframe = document.querySelector('.giscus-frame');
-        if (!iframe) return;
-        var theme;
-        if (e.target.className === "theme") {
-            theme = e.target.id;
-        } else {
-            return;
-        }
-
-        // 若当前 mdbook 主题不是 Light 或 Rust ，则将 giscuz 主题设置为 transparent_dark
-        var giscusTheme = "light"
-        if (theme != "light" && theme != "rust") {
-            giscusTheme = "transparent_dark";
-        }
-
-        var msg = {
-            setConfig: {
-                theme: giscusTheme
+            // Indent shows hierarchy
+            var indent = "";
+            switch (el.parentElement.tagName) {
+                case "H1":
+                    return;
+                case "H3":
+                    indent = "20px";
+                    break;
+                case "H4":
+                    indent = "40px";
+                    break;
+                default:
+                    break;
             }
-        };
-        iframe.contentWindow.postMessage({ giscus: msg }, 'https://giscus.app');
-    });
+
+            link.appendChild(document.createTextNode(el.text));
+            link.style.paddingLeft = indent;
+            link.href = el.href;
+            pagetoc.appendChild(link);
+        });
+        updateFunction.call();
+
+        // Handle active elements on scroll
+        window.addEventListener("scroll", updateFunction);
+    }
+
+    var themeList = document.getElementById("mdbook-theme-list") || document.getElementById("theme-list");
+    if (themeList) {
+        themeList.addEventListener("click", function (e) {
+            var iframe = document.querySelector('.giscus-frame');
+            if (!iframe) return;
+            var themeButton = e.target.closest ? e.target.closest(".theme") : null;
+            if (!themeButton) {
+                return;
+            }
+
+            var theme = themeButton.id.replace("mdbook-theme-", "");
+
+            // 若当前 mdbook 主题不是 Light 或 Rust ，则将 giscuz 主题设置为 transparent_dark
+            var giscusTheme = "light";
+            if (theme !== "light" && theme !== "rust" && theme !== "default_theme") {
+                giscusTheme = "transparent_dark";
+            }
+
+            var msg = {
+                setConfig: {
+                    theme: giscusTheme
+                }
+            };
+            iframe.contentWindow.postMessage({ giscus: msg }, 'https://giscus.app');
+        });
+    }
     
-    pagePath = pagePath.replace("index.md", "");
-    pagePath = pagePath.replace(".md", "");
-    if (pagePath.length > 0) {
-        if (pagePath.charAt(pagePath.length-1) == "/"){
-            pagePath = pagePath.substring(0, pagePath.length-1)
-        }
-    }else {
-        pagePath = "index"
+    var pagePath = path;
+    if (pagePath.length > 1 && pagePath.charAt(pagePath.length - 1) === "/") {
+        pagePath = pagePath.substring(0, pagePath.length - 1);
+    }
+    if (pagePath === "" || pagePath === "/") {
+        pagePath = "index";
+    }
+    pagePath = pagePath.replace(/^\//, "");
+    pagePath = pagePath.replace(/\.html$/, "");
+    if (pagePath === "") {
+        pagePath = "index";
     }
 
     // add visitors count
+    var isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
     var ele = document.createElement("div");
     ele.setAttribute("align","center");
-    var count = document.createElement("img")
-    // count.setAttribute("src", "https://visitor-badge.glitch.me/badge?page_id=practice/en/" + path);
-    count.setAttribute("src", "https://api.visitorbadge.io/api/visitors?labelColor=%23595959&countColor=%230d81c3&style=flat-square&path=practice/en/" + path);
-    ele.appendChild(count);
     var divider =document.createElement("hr")
 
-    document.getElementById("giscus-container").appendChild(ele);
-    document.getElementById("giscus-container").appendChild(divider);
+    if (!isLocalhost) {
+        var badgePath = path.replace(/^\/+/, "").replace(/\.html$/, "");
+        var count = document.createElement("img")
+        // count.setAttribute("src", "https://visitor-badge.glitch.me/badge?page_id=practice/en/" + badgePath);
+        count.setAttribute("src", "https://api.visitorbadge.io/api/visitors?labelColor=%23595959&countColor=%230d81c3&style=flat-square&path=practice/en/" + badgePath);
+        ele.appendChild(count);
+    }
+
+    var giscusContainer = document.getElementById("giscus-container");
+    if (!giscusContainer) {
+        giscusContainer = document.createElement("div");
+        giscusContainer.id = "giscus-container";
+        var main = document.querySelector("main");
+        if (main) {
+            main.appendChild(giscusContainer);
+        } else {
+            return;
+        }
+    }
+
+    giscusContainer.appendChild(ele);
+    giscusContainer.appendChild(divider);
     
     // 选取浏览器默认使用的语言
     const lang = navigator.language || navigator.userLanguage
@@ -150,7 +233,7 @@ var initAll = function () {
     script.setAttribute("data-lang", lang == 'en-US' ? 'en' : lang);
     // 预先加载评论会更好，这样用户读到那边时，评论就加载好了
     // script.setAttribute("data-loading", "lazy");
-    document.getElementById("giscus-container").appendChild(script);
+    giscusContainer.appendChild(script);
 };
 
 window.addEventListener('load', initAll);

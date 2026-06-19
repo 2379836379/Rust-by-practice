@@ -32,7 +32,7 @@ fn greetings(s: &str) {
 ```
 
 ### String
-`String` type is defined in std and stored as a vector of bytes (Vec<u8>), but guaranteed to always be a valid UTF-8 sequence. String is heap allocated, growable and not null terminated.
+`String` type is defined in std and stored as a vector of bytes (`Vec<u8>`), but guaranteed to always be a valid UTF-8 sequence. String is heap allocated, growable and not null terminated.
 
 3. 🌟
 ```rust,editable
